@@ -1,25 +1,19 @@
 require_relative './../car_rental'
 
-RSpec.describe Driver do
-  describe "#statement" do
+RSpec.describe TextStatement do
+  describe "#generate" do
     before :each do
       @driver = Driver.new('Rafael')
+      @statement = TextStatement.new(@driver)
       [
-        {car: Car.new('SUV', 0), days_rented: 10},
-        {car: Car.new('HATCHBACK', 1), days_rented: 2},
-        {car: Car.new('HATCHBACK', 1), days_rented: 4},
-        {car: Car.new('HATCHBACK', 1), days_rented: 4},
+        {rental_type: RentalSUV.new(10)},
+        {rental_type: RentalHatchBack.new(1)},
       ].each do |params|
-        @driver.add_rental(Rental.new(params[:car], params[:days_rented]))
+        @statement.add_rental(params[:rental_type])
       end
     end
     it 'returns correct output' do
-      expect(@driver.statement).to eq("Car rental record for Rafael\n" +
-        "SALOON,140\n" +
-        "HATCHBACK,60\n" +
-        "HATCHBACK,120\n" +
-        "Amount owed is €320\n" +
-        "Earned bonus points: 5")
+      expect(@statement.generate).to eq("Car rental record for Rafael\nSUV,300\nHATCHBACK,15\nAmount owed is €315\nEarned bonus points: 3")
     end
   end
 end

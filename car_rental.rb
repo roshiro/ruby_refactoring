@@ -1,35 +1,66 @@
-#
-# Below are 3 classes used for making a car rental program
-# 
-# 1. Improve and simplify the code but don't change the output. We're looking for demonstrated knowledge of Ruby idioms, general good coding practices, and testing
-# 2. Add a new method (json_statement) to Driver which gives you back the statement in JSON format
-# 3. Create a rake task that runs your tests.
-#
-
-class Car
-  SALOON = 0
-  SUV = 1
-  HATCHBACK = 2
-
-  attr_reader :title
-  attr_accessor :style
-
-  def initialize(title, style)
-    @title = title
-    @style = style
-  end
-end
-
 class Rental
-  attr_reader :car, :days_rented
+  attr_reader :days_rented
 
-  def initialize(car, days_rented)
-    @car = car
+  def initialize(days_rented)
     @days_rented = days_rented
-    
+
     if !(@days_rented > 0)
       raise 'Error: days_rented invalid'
     end
+  end
+
+  def total
+    raise 'Implement this method in subclass'
+  end
+
+  def bonus_points
+    0
+  end
+
+  def car_type
+    raise 'Implement this method in subclass'
+  end
+end
+
+class RentalSUV < Rental
+  def total
+    days_rented * 30
+  end
+
+  def bonus_points
+    days_rented > 1 ? 1 : 0
+  end
+
+  def car_type
+    'SUV'
+  end
+end
+
+class RentalHatchBack < Rental
+  def total
+    this_amount = 15
+    if days_rented > 3
+      this_amount += (days_rented - 3) * 15
+    end
+    this_amount
+  end
+
+  def car_type
+    'HATCHBACK'
+  end
+end
+
+class RentalSaloon < Rental
+  def total
+    this_amount = 20
+    if days_rented > 2
+      this_amount += (days_rented - 2) * 15
+    end
+    this_amount
+  end
+
+  def car_type
+    'SALOON'
   end
 end
 
@@ -38,6 +69,12 @@ class Driver
 
   def initialize(name)
     @name = name
+  end
+end
+
+class Statement
+  def initialize(driver)
+    @driver = driver
     @rentals = []
   end
 
@@ -45,45 +82,61 @@ class Driver
     @rentals << rental
   end
 
-  def statement
-    total = 0
-    bonus_points = 0
-    result = "Car rental record for #{@name.to_s}\n"
-    for r in @rentals
-      this_amount = 0
-      case r.car.style
-        when Car::SUV
-          this_amount += r.days_rented * 30
-        when Car::HATCHBACK
-          this_amount += 15
-          if r.days_rented > 3
-            this_amount += (r.days_rented - 3) * 15
-          end
-        when Car::SALOON
-          this_amount += 20
-          if r.days_rented > 2
-            this_amount += (r.days_rented - 2) * 15
-          end
-        else
+  def generate
+    raise 'Implement this method in subclass'
+  end
 
-      end
-      
-      if this_amount < 0
-        bonus_points -= 10
+  private
+
+    def amounts_for_statement
+      total = 0
+      bonus_points = 0
+
+      @rentals.each do |rental|
+        this_amount = rental.total
+
+        bonus_points -= 10 if this_amount < 0
+
+        bonus_points += 1
+        bonus_points += rental.bonus_points
+
+        total += this_amount
       end
 
-      bonus_points = bonus_points + 1
-      if r.car.style == Car::SUV && r.days_rented > 1
-        bonus_points = bonus_points + 1
-      end
-
-      result += r.car.title.to_s + "," + this_amount.to_s + "\n"
-      total += this_amount
+      [total, bonus_points]
     end
+end
 
-    result += "Amount owed is €" + "#{total.to_s}" + "\n"
-    result += "Earned bonus points: " + bonus_points.to_s
+class TextStatement < Statement
+  def generate
+    total_amount, total_bonus_points = amounts_for_statement
+    result = "Car rental record for #{@driver.name}\n"
+    @rentals.each { |rental| result += rental.car_type + "," + rental.total.to_s + "\n" }
+    result += "Amount owed is €" + "#{total_amount.to_s}" + "\n"
+    result += "Earned bonus points: " + total_bonus_points.to_s
     result
   end
 end
 
+class JSONStatement < Statement
+  def generate
+    total_amount, total_bonus_points = amounts_for_statement
+    {
+      driver_name: @driver.name,
+      rentals: rental_list,
+      amount_owned: total_amount,
+      bonus_points_earned: total_bonus_points
+    }
+  end
+
+  private
+
+    def rental_list
+      @rentals.map do |rental|
+        {
+          car_type: rental.car_type,
+          total: rental.total
+        }
+      end
+    end
+end
